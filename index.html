@@ -1,32 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text to Speech</title>
     <style>
-       body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #f0f0f0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         .container {
-    text-align: center;
-    background-color: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    transition: background-color 0.5s ease-in;
-    flex: 1; /* This allows the container to grow */
-}
+            text-align: center;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.5s ease-in;
+            flex: 1;
+            /* This allows the container to grow */
+        }
+
         .success {
             background-color: rgb(7, 182, 85);
         }
+
         .failure {
             background-color: rgb(182, 7, 7);
         }
@@ -36,132 +41,194 @@
             padding: 0.5rem;
             margin-bottom: 1rem;
         }
+
         .layout {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 20px;
-    width: 100%;
-    max-width: 1200px; /* Adjust as needed */
-}
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            /* Adjust as needed */
+        }
 
         .list-container {
-    flex: 0 0 200px; /* Adjust width as needed */
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    padding: 1rem;
-}
+            flex: 0 0 200px;
+            /* Adjust width as needed */
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+        }
 
-.history-list {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    max-height: 300px;
-    overflow-y: auto;
-}
+        .history-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
 
-.history-list li {
-    padding: 5px 0;
-    border-bottom: 1px solid #eee;
-}
+        .history-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
 
-.history-list li:last-child {
-    border-bottom: none;
-}
+        .history-list li:last-child {
+            border-bottom: none;
+        }
+
+        #textInput::-webkit-inner-spin-button,
+        #textInput::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        #textInput {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
+
 <body>
     <div class="layout">
-    <div id="container" class="container">
-        <h1>Number 王</h1>
-        <h1>号 King</h1>
-        <input type="text" id="textInput" placeholder="Enter answer">
-        <div>
-        <button id="repeat" onclick=speak()>repeat</button>
-        <label for="score">Score:</label>
-        <output id="score", name="score">0</output>
+        <div id="container" class="container">
+            <h1>Number 王</h1>
+            <h1>号 King</h1>
+            <input type="number" id="textInput" placeholder="Enter answer" min="0" step="1">
+            <div>
+                <button id="repeat" onclick=speak()>repeat</button>
+                <label for="score">Score:</label>
+                <output id="score" , name="score">0</output>
+            </div>
+        </div>
+        <div class="list-container">
+            <h2>history</h2>
+            <ul id="myList" class="history-list">
+                <!-- List items will be added here -->
+            </ul>
+        </div>
     </div>
-    <div class="list-container">
-        <h2>history</h2>
-    <ul id="myList" class="history-list">
-        <!-- List items will be added here -->
-      </ul>
-    </div>
-    </div>
+
+
+</body>
+<footer>
     <script>
-        const voice = window.speechSynthesis.getVoices()
-                                            .filter(ssv => ssv.lang == 'zh-CN' && ssv.name.includes("Yaoyao"))
-                                            .pop();
-        
-        let container = document.getElementById('container');
-        
-        let score = createReactiveVar(0 , (newValue) => document.getElementById('score').innerHTML = newValue);
+        //global vars
+        var init = false;
+        var voices = [];
+        var voice;
+        var score = 0;
+        var generatedNumber;
+        var history = [];
 
-        let generatedNumber;
+        const speechSynth = window.speechSynthesis;
+        const localStorage = window.localStorage;
 
-        let generatedNumbers = createReactiveVar([], (newEntry) => document.getElementById('myList')
-                                                                           .appendChild(document.createElement('li').textContent = newEntry));
+        const container = document.getElementById('container');
+        const textInput = document.getElementById('textInput');
+        const scoreContainer = document.getElementById('score');
+        const historyContainer = document.getElementById('myList');
+    </script>
+    <script>
+        //main
+        function evaluate() {
+
+            AddToHistory(generatedNumber);
+            if (textInput.value == generatedNumber) {
+
+                setScore(score + generatedNumber.toString().length);
+                container.className = "container success";
+            } else {
+                container.className = "container failure";
+            }
+            saveSession();
+            setTimeout(reset, 1000);
+        }
+
+        function reset() {
+            container.className = "container";
+            textInput.value = "";
+            generatedNumber = getRandomIntInclusive(2, score + 1);
+            speak();
+        }
+
+        function start() {
+            let session = loadSession();
+            setScore(session.score);
+            reset();
+        }
+
+    </script>
+    <script>
+        //event listeners
+        textInput.onkeypress = function (event) {
+            if (event.key === 'Enter') {
+                evaluate();
+            }
+        };
+
+        textInput.onkeydown = function (event) {
+            if (event.key === '.') {
+                event.preventDefault();
+            }
+        }
+
+        speechSynth.onvoiceschanged = () => {
+            if (init === true)
+                return;
+
+            voices = window.speechSynthesis.getVoices();
+            voice = voices.filter(ssv => ssv.lang == 'zh-CN').pop();
+            init = true;
+            start();
+        }
+    </script>
+    <script>
+        //helpers
+        function setScore(newScore) {
+            score = newScore;
+            scoreContainer.innerHTML = score;
+        };
+
+        function newLi() {
+            return document.createElement('li');
+        };
+
+        function AddToHistory(value) {
+
+            let entry = newLi();
+            entry.textContent = value;
+            historyContainer.insertBefore(entry, historyContainer.firstChild);
+        };
 
         function getRandomIntInclusive(min, max) {
             min = Math.ceil(min);
             max = Math.floor(max);
             return Math.floor(Math.random() * (max - min + 1) + min);
+        };
+
+        function getUtterance(input) {
+            let utterance = new SpeechSynthesisUtterance(generatedNumber);
+            utterance.voice = voice;
+            return utterance;
         }
 
         function speak() {
-            
-            let utterance = new SpeechSynthesisUtterance(generatedNumber);
-            utterance.voice = voice;
-            window.speechSynthesis.speak(utterance);
-        }
-        
-        function evaluate() {
-            let list = document.getElementById('myList');
-            let entry = document.createElement('li');
-            entry.textContent = generatedNumber;
-            list.insertBefore(entry, list.firstChild);
-
-            let textInput = document.getElementById('textInput');
-            let answer = Number(textInput.value);
-            if(answer == generatedNumber){
-                score.set(score.value + generatedNumber.toString().length);
-                container.className = "container success";
-            }else{
-                container.className = "container failure";
-            }
-            setTimeout(reset, 1000);
+            speechSynth.speak(getUtterance(generatedNumber));
         }
 
-        function reset(){
-            container.className = "container";
-            textInput.value = "";
-            generatedNumber = getRandomIntInclusive(1, score.value + 1);
-            speak()
-        }
-
-        document.getElementById('textInput').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                evaluate();
-            }
-        });
-
-        reset();
-
-
-
-        function createReactiveVar(initialValue, onChangeCallback) {
-            return {
-                value: initialValue,
-                set(newValue) {
-                    if (newValue !== this.value) {
-                        this.value = newValue;
-                        onChangeCallback(newValue);
-                    }
-                }
+        function saveSession() {
+            let session = {
+                score: score,
             };
-            }
+            localStorage.setItem("numberWangeSession", JSON.stringify(session));
+        };
+
+        function loadSession() {
+            return JSON.parse(localStorage.getItem("numberWangeSession")) ?? { score: 0 };
+        };
     </script>
-    
-</body>
+</footer>
+
 </html>
