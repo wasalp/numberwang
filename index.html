@@ -6,86 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text to Speech</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f0f0;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .layout {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-auto-rows: minmax(100px, auto)
         }
 
         .container {
-            text-align: center;
-            background-color: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.5s ease-in;
-            flex: 1;
-            /* This allows the container to grow */
-        }
-
-        .success {
-            background-color: rgb(7, 182, 85);
-        }
-
-        .failure {
-            background-color: rgb(182, 7, 7);
-        }
-
-        input {
-            width: 300px;
-            padding: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .layout {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 20px;
-            width: 100%;
-            max-width: 1200px;
-            /* Adjust as needed */
+            grid-column: 1/2;
         }
 
         .list-container {
-            flex: 0 0 200px;
-            /* Adjust width as needed */
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            padding: 1rem;
-        }
-
-        .history-list {
-            list-style-type: none;
-            padding: 0;
-            margin: 0;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .history-list li {
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .history-list li:last-child {
-            border-bottom: none;
-        }
-
-        #textInput::-webkit-inner-spin-button,
-        #textInput::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        #textInput {
-            -moz-appearance: textfield;
+            grid-column: 3;
+            grid-row: 1;
         }
     </style>
 </head>
@@ -97,7 +30,7 @@
             <h1>号 King</h1>
             <input type="number" id="textInput" placeholder="Enter answer" min="0" step="1">
             <div>
-                <button id="repeat" onclick=speak()>repeat</button>
+                <button id="repeat" onclick=speak(generatedNumber)>repeat</button>
                 <label for="score">Score:</label>
                 <output id="score" , name="score">0</output>
             </div>
@@ -109,21 +42,20 @@
             </ul>
         </div>
     </div>
-
-
 </body>
 <footer>
     <script>
         //global vars
         var init = false;
-        var voices = [];
-        var voice;
         var score = 0;
+        var historyArray = [];
         var generatedNumber;
-        var history = [];
 
         const speechSynth = window.speechSynthesis;
         const localStorage = window.localStorage;
+
+        const chineseNumbers = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+        const chineseUnits = ['', '十', '百', '千', '万'];
 
         const container = document.getElementById('container');
         const textInput = document.getElementById('textInput');
@@ -149,13 +81,17 @@
         function reset() {
             container.className = "container";
             textInput.value = "";
-            generatedNumber = getRandomIntInclusive(2, score + 1);
-            speak();
+            generatedNumber = getRandomIntInclusive(2, score + 1)
+            speak(generatedNumber);
         }
 
         function start() {
             let session = loadSession();
             setScore(session.score);
+            let entries = session.history;
+            for (let entry of entries) {
+                AddToHistory(entry);
+            }
             reset();
         }
 
@@ -168,6 +104,7 @@
             }
         };
 
+        //restrict values that can be inputed in our textInput
         textInput.onkeydown = function (event) {
             if (event.key === '.') {
                 event.preventDefault();
@@ -177,10 +114,7 @@
         speechSynth.onvoiceschanged = () => {
             if (init === true)
                 return;
-
-            voices = window.speechSynthesis.getVoices();
-            voice = voices.filter(ssv => ssv.lang == 'zh-CN').pop();
-            init = true;
+            init = !init;
             start();
         }
     </script>
@@ -191,15 +125,11 @@
             scoreContainer.innerHTML = score;
         };
 
-        function newLi() {
-            return document.createElement('li');
-        };
-
         function AddToHistory(value) {
-
-            let entry = newLi();
-            entry.textContent = value;
-            historyContainer.insertBefore(entry, historyContainer.firstChild);
+            historyArray.push(value);
+            let newEntry = document.createElement('li');
+            newEntry.textContent = `${value}: ${numberToChinese(value)}`;
+            historyContainer.insertBefore(newEntry, historyContainer.firstChild);
         };
 
         function getRandomIntInclusive(min, max) {
@@ -209,24 +139,48 @@
         };
 
         function getUtterance(input) {
-            let utterance = new SpeechSynthesisUtterance(generatedNumber);
-            utterance.voice = voice;
+            let utterance = new SpeechSynthesisUtterance(input);
+            utterance.lang = 'zh-CN';
             return utterance;
         }
 
-        function speak() {
-            speechSynth.speak(getUtterance(generatedNumber));
+        function speak(input) {
+            speechSynth.speak(getUtterance(input));
+        }
+
+        function numberToChinese(num) {
+            if (num === 0) return chineseNumbers[0];
+            let result = '';
+            let unitIndex = 0;
+            while (num > 0) {
+                const digit = num % 10;
+                const next = Math.floor(num / 10);
+                if (digit !== 0) {
+                    result = (next !== 0 || digit > 1 ? chineseNumbers[digit] : "") + chineseUnits[unitIndex] + result;
+                } else if (result.length > 0 && result[0] !== chineseNumbers[0]) {
+                    result = chineseNumbers[0] + result;
+                }
+                num = next;
+                unitIndex++;
+            }
+            return result;
         }
 
         function saveSession() {
             let session = {
                 score: score,
+                history: Array.isArray(historyArray) ? historyArray : [],
             };
-            localStorage.setItem("numberWangeSession", JSON.stringify(session));
+            localStorage.setItem("numberWangSession", JSON.stringify(session));
         };
 
         function loadSession() {
-            return JSON.parse(localStorage.getItem("numberWangeSession")) ?? { score: 0 };
+            let session = JSON.parse(localStorage.getItem("numberWangSession")) ?? { score: 0, history: [] }
+            if (session.score === undefined)
+                session.score = 0
+            if (session.history === undefined || Array.isArray(session.history) === false)
+                session.history = []
+            return session;
         };
     </script>
 </footer>
